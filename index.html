@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Home Voice IoT</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: radial-gradient(circle at top, #0b132b, #1c2541);
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      padding: 20px;
+      font-size: 1.5em;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+    }
+
+    .menu {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 30px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      width: 180px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      background: rgba(0,255,255,0.2);
+      transform: scale(1.05);
+    }
+
+    .device-list {
+      display: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .device {
+      background: rgba(255,255,255,0.08);
+      width: 160px;
+      height: 100px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: 0.3s;
+    }
+
+    .device.on {
+      background: rgba(0,255,0,0.3);
+    }
+
+    button {
+      background: #00b0ff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    button:hover {
+      background: #0091ea;
+    }
+
+    .voice-status {
+      margin-top: 20px;
+      font-style: italic;
+      color: #00e5ff;
+    }
+
+    .back-btn {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>🏠 Smart Home Voice Control</header>
+
+  <main>
+    <div id="home" class="menu">
+      <div class="card" onclick="openDevice('lampu')">💡 Lampu</div>
+      <div class="card" onclick="openDevice('kipas')">🌀 Kipas</div>
+      <div class="card" onclick="openDevice('komputer')">💻 Komputer</div>
+    </div>
+
+    <div id="lampu" class="device-list"></div>
+    <div id="kipas" class="device-list"></div>
+    <div id="komputer" class="device-list"></div>
+
+    <button class="back-btn" onclick="goBack()" style="display:none;">← Kembali</button>
+
+    <div class="voice-status">🎤 Menunggu perintah suara...</div>
+  </main>
+
+  <script>
+    const devices = {
+      lampu: ["ruang tamu", "kamar", "dapur"],
+      kipas: ["ruang tamu", "kamar"],
+      komputer: Array.from({ length: 14 }, (_, i) => `komputer ${i + 1}`)
+    };
+
+    function openDevice(type) {
+      document.getElementById("home").style.display = "none";
+      document.querySelector(".back-btn").style.display = "inline-block";
+      for (let key in devices) document.getElementById(key).style.display = "none";
+
+      const container = document.getElementById(type);
+      container.innerHTML = "";
+      devices[type].forEach(name => {
+        const div = document.createElement("div");
+        div.className = "device";
+        div.innerHTML = `<strong>${name}</strong><br><button onclick="toggleDevice(this)">OFF</button>`;
+        container.appendChild(div);
+      });
+      container.style.display = "flex";
+      currentPage = type;
+    }
+
+    function toggleDevice(btn) {
+      const card = btn.parentElement;
+      const isOn = card.classList.toggle("on");
+      btn.textContent = isOn ? "ON" : "OFF";
+    }
+
+    function goBack() {
+      document.querySelectorAll(".device-list").forEach(d => d.style.display = "none");
+      document.getElementById("home").style.display = "flex";
+      document.querySelector(".back-btn").style.display = "none";
+      currentPage = "home";
+    }
+
+    // ====================
+    // 🎙️ VOICE COMMAND
+    // ====================
+    let currentPage = "home";
+
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.lang = 'id-ID';
+      recognition.start();
+
+      recognition.onresult = event => {
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        handleVoiceCommand(transcript);
+      };
+    }
+
+    function speak(text) {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "id-ID";
+      speechSynthesis.speak(msg);
+    }
+
+    function handleVoiceCommand(cmd) {
+      document.querySelector(".voice-status").textContent = `🎙️ Perintah: "${cmd}"`;
+
+      // Navigasi halaman
+      if (cmd.includes("buka lampu")) return (openDevice("lampu"), speak("Membuka halaman lampu"));
+      if (cmd.includes("buka kipas")) return (openDevice("kipas"), speak("Membuka halaman kipas"));
+      if (cmd.includes("buka komputer")) return (openDevice("komputer"), speak("Membuka halaman komputer"));
+      if (cmd.includes("buka beranda")) return (goBack(), speak("Kembali ke beranda"));
+
+      // Perintah global
+      if (cmd.includes("nyalakan semua lampu")) return controlAll("lampu", true);
+      if (cmd.includes("matikan semua lampu")) return controlAll("lampu", false);
+      if (cmd.includes("nyalakan semua kipas")) return controlAll("kipas", true);
+      if (cmd.includes("matikan semua kipas")) return controlAll("kipas", false);
+      if (cmd.includes("nyalakan semua komputer")) return controlAll("komputer", true);
+      if (cmd.includes("matikan semua komputer")) return controlAll("komputer", false);
+
+      // Perintah spesifik (contoh: nyalakan lampu dapur)
+      for (let type in devices) {
+        for (let name of devices[type]) {
+          if (cmd.includes(`nyalakan ${name}`) || cmd.includes(`hidupkan ${name}`)) {
+            toggleSpecific(type, name, true);
+            speak(`${name} telah dinyalakan`);
+            return;
+          }
+          if (cmd.includes(`matikan ${name}`) || cmd.includes(`padamkan ${name}`)) {
+            toggleSpecific(type, name, false);
+            speak(`${name} telah dimatikan`);
+            return;
+          }
+        }
+      }
+
+      speak("Perintah tidak dikenali");
+    }
+
+    function controlAll(type, state) {
+      openDevice(type);
+      document.querySelectorAll(`#${type} .device`).forEach(card => {
+        card.classList.toggle("on", state);
+        const btn = card.querySelector("button");
+        btn.textContent = state ? "ON" : "OFF";
+      });
+      speak(`${type} telah ${state ? "dinyalakan semua" : "dimatikan semua"}`);
+    }
+
+    function toggleSpecific(type, name, state) {
+      openDevice(type);
+      document.querySelectorAll(`#${type} .device`).forEach(card => {
+        if (card.textContent.toLowerCase().includes(name)) {
+          card.classList.toggle("on", state);
+          const btn = card.querySelector("button");
+          btn.textContent = state ? "ON" : "OFF";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
